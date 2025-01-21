@@ -1,7 +1,7 @@
 'use client'
 
 import PageHeader from '../_components/PageHeader'
-import { useMutation, useQuery } from 'urql'
+import { useMutation, useQuery } from '@urql/next'
 import { useState } from 'react'
 import {
   Button,
@@ -17,13 +17,34 @@ import {
 } from '@nextui-org/react'
 import { PlusIcon } from 'lucide-react'
 import Issue from '../_components/Issue'
+import { IssuesQuery } from '@/gql/issuesQuery'
+import { CreateIssueMutation } from '@/gql/createIssueMutation'
 
 const IssuesPage = () => {
+  const [{ data, fetching, error }, replay] = useQuery({
+    query: IssuesQuery,
+  })
+  const [newIssueResult, createNewIssue] = useMutation(CreateIssueMutation)
   const { isOpen, onOpen, onOpenChange } = useDisclosure()
   const [issueName, setIssueName] = useState('')
   const [issueDescription, setIssueDescription] = useState('')
 
-  const onCreate = async (close) => {}
+  const onCreate = async (close) => {
+    const result = await createNewIssue({
+      input: { name: issueName, content: issueDescription },
+    })
+
+    if (result.error) {
+      console.error(result.error)
+    }
+
+    if (result.data) {
+      await replay()
+      close()
+      setIssueName('')
+      setIssueDescription('')
+    }
+  }
 
   return (
     <div>
@@ -38,11 +59,14 @@ const IssuesPage = () => {
         </Tooltip>
       </PageHeader>
 
-      {[].map((issue) => (
-        <div key={issue.id}>
-          <Issue issue={issue} />
-        </div>
-      ))}
+      {fetching && <Spinner />}
+      {error && <div>error</div>}
+      {data &&
+        data.issues.map((issue) => (
+          <div key={issue.id}>
+            <Issue issue={issue} />
+          </div>
+        ))}
 
       <Modal
         size="2xl"
